@@ -1,0 +1,46 @@
+.env
+# ===========================
+# Python / Jupyter
+# ===========================
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# ===========================
+# Model Training Outputs
+# ===========================
+learn_LLM/outputs/
+learn_LLM/unsloth_compiled_cache/
+
+# Unsloth / LoRA generated files
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Optimizer / scheduler states
+optimizer.pt
+scheduler.pt
+trainer_state.json
+rng_state.pth
+scaler.pt
+
+# ===========================
+# Logs
+# ===========================
+*.log
+*.out
+*.err
+
+# ===========================
+# Data Files (Optional)
+# 큰 PDF Ignore 권장
+# ===========================
+learn_LLM/src/*.pdf
+*.pdf
+scripts/img_dataset/
+# ===========================
+# Others
+# ===========================
+.DS_Store
+*.zip

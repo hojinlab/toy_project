@@ -1,0 +1,192 @@
+<mujoco model="turtlebot3_waffle_pi">
+  <compiler angle="radian" meshdir="/Users/hkim/Documents/UROP/mujoco_llm_copy/asset/robotis_tb3/assets" autolimits="true"/>
+
+  <option integrator="implicitfast"/>
+
+  <visual>
+  <rgba rangefinder="0 0 1 0.1"/>
+  </visual>
+
+  <!-- Default -->
+  <default>
+    <joint limited="false" armature="0.01" />
+    <!-- rolling joint -->
+    <equality solref="0.0002 1" solimp="0.99 0.99 0.0001" />
+  </default>
+
+  <asset>
+    <mesh name="waffle_pi_base" file="waffle_pi_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="left_tire" file="left_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="right_tire" file="right_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="lds" file="lds.stl" scale="0.001 0.001 0.001"/>
+    <!-- 센서용 mesh 추가 -->
+    <mesh name="camera"    file="camera.stl"/>
+    <mesh name="lidar"     file="lidar.stl"     scale="0.001 0.001 0.001"/>
+    <mesh name="ul_sensor" file="ul_sensor.stl"/>
+  </asset>
+
+  <worldbody>
+    <body name="base" pos="0 0 0" euler="0 0 0">
+      <joint type="free" name="base_joint"/>
+      <geom pos="-0.064 0 0.01" quat="1 0 0 0" type="mesh" rgba="0.4 0.4 0.4 1" mesh="waffle_pi_base"/>
+      <geom size="0.015 0.0045 0.01" pos="-0.177 -0.0639992 0.005" quat="0.707388 -0.706825 0 0" type="box"/>
+      <geom size="0.015 0.0045 0.01" pos="-0.177 0.0640008 0.005" quat="0.707388 -0.706825 0 0" type="box"/>
+      <geom pos="-0.049 0 0.1255" quat="1 0 0 0" type="mesh" rgba="0.3 0.3 0.3 1" mesh="lds"/>
+      <geom size="0.0075 0.015 0.0135" pos="0.078 0 0.107" type="box"/>
+      <body name="wheel_left_link" pos="0 0.144 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326" mass="0.0284989" diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="wheel_left_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom quat="0.707388 0.706825 0 0" type="mesh" rgba="0.3 0.3 0.3 1" mesh="left_tire"/>
+      </body>
+      <body name="wheel_right_link" pos="0 -0.144 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326" mass="0.0284989" diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="wheel_right_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom quat="0.707388 0.706825 0 0" type="mesh" rgba="0.3 0.3 0.3 1" mesh="right_tire"/>
+      </body>
+
+      <body name="bumper_right" pos="0 -0.17 0.03">
+        <geom type="box" size="0.2 0.01 0.008" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+        <body name="pole_right_1" pos="0 -0.02 0">
+          <joint name="pole_right_slide" type="slide" axis="1 0 0" range="0 0.2" damping="0.7"/>
+          <geom type="capsule" pos="0 0 0" size="0.01 0.1" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+          <body name="arm_ball_right" pos="0.12 0 0">
+            <geom type="sphere" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+            <body name="pole_right_2" pos="0 0 0">
+              <joint name="pole_right_hinge" type="hinge" axis="0 0 1" range="0 1.57" damping="0.4"/>
+              <geom type="capsule" fromto="0.02 0 0 0.09 0 0" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+              <body name="pole_right_3" pos="0.04 0 0.02">
+                <geom type="capsule" size="0.01 0.045" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                <joint name="pole_right_press" type="slide" axis="1 0 0" range="0 0.1" damping="0.8"/>
+
+                <body name="finger_ball_right" pos="0.065 0 0">
+                  <geom type="sphere" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+                  <body name="finger_right_1" pos="0 0.02 0">
+                    <geom type="capsule" fromto="0 0 0 -0.09 0 0" size="0.01" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                    <joint name="finger_right_hinge_1" type="hinge" axis="0 0 1" range="-2.36 0" damping="0.8"/>
+                  </body>
+
+                  <body name="finger_right_2" pos="0 -0.02 0">
+                    <geom type="capsule" fromto="0 0 0 -0.09 0 0" size="0.01" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                    <joint name="finger_right_hinge_2" type="hinge" axis="0 0 1" range="0 2.36" damping="0.8"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="bumper_left" pos="0 0.17 0.03">
+        <geom type="box" size="0.2 0.01 0.008" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+        <body name="pole_left_1" pos="0 0.02 0">
+          <joint name="pole_left_slide" type="slide" axis="1 0 0" range="0 0.2" damping="0.7"/>
+          <geom type="capsule" pos="0 0 0" size="0.01 0.1" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+          <body name="arm_ball_left" pos="0.12 0 0">
+            <geom type="sphere" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+            <body name="pole_left_2" pos="0 0 0">
+              <joint name="pole_left_hinge" type="hinge" axis="0 0 1" range="-1.57 0" damping="0.4"/>
+              <geom type="capsule" fromto="0.02 0 0 0.09 0 0" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+              <body name="pole_left_3" pos="0.04 0 0.02">
+                <geom type="capsule" size="0.01 0.045" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                <joint name="pole_left_press" type="slide" axis="1 0 0" range="0 0.1" damping="0.8"/>
+
+                <body name="finger_ball_left" pos="0.065 0 0">
+                  <geom type="sphere" size="0.01" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+
+                  <body name="finger_left_1" pos="0 0.02 0">
+                    <geom type="capsule" fromto="0 0 0 -0.09 0 0" size="0.01" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                    <joint name="finger_left_hinge_1" type="hinge" axis="0 0 1" range="-2.36 0" damping="0.8"/>
+                  </body>
+
+                  <body name="finger_left_2" pos="0 -0.02 0">
+                    <geom type="capsule" fromto="0 0 0 -0.09 0 0" size="0.01" euler="0 1.57 0" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+                    <joint name="finger_left_hinge_2" type="hinge" axis="0 0 1" range="0 2.36" damping="0.8"/>
+                  </body>
+                </body>
+              </body>
+          </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="tower" pos="-0.18 0 0.02">
+        <geom name="tower_geom" pos="0 0 0.15" type="box" size="0.01 0.1 0.07" rgba="0.5 0.5 0.5 1" mass="0.000001"/>
+      </body>
+
+            <!-- IMU -->
+      <body name="imu_link" pos="0 0 0.05">
+        <site name="imu" pos="0 0 0"/>
+      </body>
+
+      <!-- 카메라 (앞쪽에 장착) -->
+      <body name="camera_mount" pos="-0.16 0 0.23">
+        <body name="camera_link" pos="0 0 0">
+          <geom type="mesh" mesh="camera" rgba="0.31 0.64 0.41 1.0" pos="0 0 0"/>
+          <camera
+              name="camera"
+              mode="fixed"
+              fovy="60"
+              xyaxes="0 -1 0 0 0 1"/>
+        </body>
+      </body>
+
+      <!-- LiDAR (lds 위에 딱 얹기) -->
+      <body name="lidar_mount" pos="-0.032 0 0.172">
+        <body name="laser_link" pos="0 0 0">
+          <geom type="mesh" mesh="lidar" rgba="0.1 0.1 0.1 1" pos="0 0 0"/>
+          <replicate count="360" euler="0 0 1">
+            <site name="rf"
+                  size="0.001 0.001 0.001"
+                  rgba="0 0 0 0"
+                  pos="0.0 0.0 0.03"
+                  zaxis="1 0 0"/>
+          </replicate>
+        </body>
+      </body>
+
+      <!-- 초음파 센서 (앞쪽 아래쪽, 그냥 박스 기하만) -->
+      <body name="ul_sensor_mount" pos="0.1 0 0.04">
+        <body name="ul_sensor_link" pos="0 0 0">
+          <geom type="mesh" mesh="ul_sensor" rgba="0.07 0.34 0.63 1.0" pos="0 0 0"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <!-- LiDAR -->
+    <rangefinder name="laser" site="rf" cutoff="3.0"/>
+
+    <!-- IMU -->
+    <accelerometer name="accelerometer" site="imu"/>
+    <gyro           name="gyro"          site="imu"/>
+    <velocimeter    name="velocimeter"   site="imu"/>
+
+    <rangefinder name="laser2" site="rf" cutoff="3.0"/>
+  </sensor>
+
+  <!-- Actuator -->
+  <actuator>
+    <velocity name="wheel_left_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" kv="1.0" joint="wheel_left_joint" />
+    <velocity name="wheel_right_actuator" ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" kv="1.0" joint="wheel_right_joint" />
+    <position name="arm_right_actuator" joint="pole_right_hinge" kp="5.0" ctrlrange="0 1.57"/>
+    <position name="arm_right_slider" joint="pole_right_slide" kp="5.0" ctrlrange="0 0.2"/>
+    <position name="arm_left_actuator" joint="pole_left_hinge" kp="5.0" ctrlrange="-1.57 0"/>
+    <position name="arm_left_slider" joint="pole_left_slide" kp="5.0" ctrlrange="0 0.2"/>
+
+    <position name="press_right" joint="pole_right_press" kp="5.0" ctrlrange="0 0.01"/>
+    <position name="finger_right_actuator_1" joint="finger_right_hinge_1" kp="5.0" ctrlrange="-2.36 0"/>
+    <position name="finger_right_actuator_2" joint="finger_right_hinge_2" kp="5.0" ctrlrange="0 2.36"/>
+
+    <position name="press_left" joint="pole_left_press" kp="5.0" ctrlrange="0 0.01"/>
+    <position name="finger_left_actuator_1" joint="finger_left_hinge_1" kp="5.0" ctrlrange="-2.36 0"/>
+    <position name="finger_left_actuator_2" joint="finger_left_hinge_2" kp="5.0" ctrlrange="0 2.36"/>
+  </actuator>
+</mujoco>

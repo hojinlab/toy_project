@@ -1,0 +1,7 @@
+<mujoco model="tb3_factory">
+  <!-- 메인에서 meshdir을 아예 robotis_tb3/assets로 고정 -->
+  <compiler angle="radian" meshdir="/Users/hkim/Documents/UROP/mujoco_llm_copy/asset/robotis_tb3/assets" autolimits="true"/>
+
+  <include file="factory_boxes.xml"/>
+  <include file="tb3_waffle_sensor.xml"/>
+</mujoco>

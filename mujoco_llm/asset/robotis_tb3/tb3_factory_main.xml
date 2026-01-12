@@ -1,0 +1,17 @@
+<mujoco model="tb3_factory">
+  <compiler angle="radian"
+            meshdir="/Users/hkim/Documents/UROP/mujoco_llm_copy/asset/robotis_tb3/assets"
+            autolimits="true"/>
+
+  <include file="factory.xml"/>
+  <include file="map/factory_boxes.xml"/>
+  <include file="map/factory_sphere.xml"/>
+  <include file="map/factory_tetra.xml"/>
+  <include file="map/factory_wall.xml"/>
+  <include file="map/factory_heart_card.xml"/>
+  <include file="map/factory_star.xml"/>
+  
+  <include file="tb3_waffle_sensor.xml"/>
+
+</mujoco>
+
