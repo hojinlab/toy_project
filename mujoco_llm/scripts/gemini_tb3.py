@@ -16,24 +16,53 @@ import cv2
 load_dotenv()
 
 TARGET_MAP = {
+    # 정사면체 (Tetrahedron)
+    "정사면체": "tetrahedron",
+    "사면체": "tetrahedron",
+    "tetrahedron": "tetrahedron",
+    "tetra": "tetrahedron",
+    "삼각뿔": "tetrahedron",  # 기하학적으로는 다르나 일반 사용자 혼용 고려
+    "세모": "tetrahedron",
+
+    # 정육면체 (Cube)
+    "정육면체": "cube",
+    "육면체": "cube",
+    "정6면체": "cube",
+    "큐브": "cube",
+    "cube": "cube",
+    "상자": "cube",
+    "box": "cube",
+    "네모": "cube",
+
+    # 구 (Sphere)
+    "구": "sphere",
+    "구체": "sphere",
+    "공": "sphere",
+    "sphere": "sphere",
+    "ball": "sphere",
+    "둥근것": "sphere",
+
+    # 별 (Star)
+    "별": "star",
+    "별모양": "star",
+    "스타": "star",
+    "star": "star",
+    "오각형별": "star",
+
+    # 하트 (Heart)
     "하트": "heart",
+    "심장": "heart",
+    "하트모양": "heart",
     "heart": "heart",
-    "다이아": "diamond",
-    "다이아몬드": "diamond",
-    "diamond": "diamond",
-    "클로버": "club",
-    "클로바": "club",
-    "클럽": "club",
-    "club": "club",
-    "스페이드": "spade",
-    "spade": "spade",
+    "사랑": "heart",
 }
 
 SEARCH_CMD = {
+    "tetrahedron": "SEARCH_TETRAHEDRON",
+    "cube": "SEARCH_CUBE",
+    "sphere": "SEARCH_SPHERE",
+    "star": "SEARCH_STAR",
     "heart": "SEARCH_HEART",
-    "diamond": "SEARCH_DIAMOND",
-    "club": "SEARCH_CLUB",
-    "spade": "SEARCH_SPADE",
 }
 
 # ============================================
