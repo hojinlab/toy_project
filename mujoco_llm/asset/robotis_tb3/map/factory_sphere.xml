@@ -1,0 +1,17 @@
+<mujoco>
+  <asset>
+  </asset>
+
+  <worldbody>
+        <body name="movable_sphere" pos="0.5 -1 0.05">
+            <freejoint />
+            
+            <geom name="sphere_geom" 
+                  type="sphere" 
+                  size="0.05 0.05"
+                  material="box_mat" 
+                  mass="0.000001"
+                  friction="1.0 0.05 0.01" /> 
+        </body>
+  </worldbody>
+</mujoco>

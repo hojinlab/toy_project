@@ -1,0 +1,19 @@
+<mujoco>
+  <asset>
+    <texture name="heart_img_tex" type="2d" file="cards/pink_heart.png"/>
+    <material name="heart_card_mat" texture="heart_img_tex" texuniform="false"/>
+  </asset>
+
+  <worldbody>
+    <body name="heart_photo_card" pos="1.45 -1 0.1" euler="1.57 -1.57 0">
+      
+      <geom name="heart_geom"
+            type="box" 
+            size="0.1 0.1 0.005" 
+            material="heart_card_mat" 
+            mass="0" 
+            contype="1" 
+            conaffinity="1"/>
+    </body>
+  </worldbody>
+</mujoco>

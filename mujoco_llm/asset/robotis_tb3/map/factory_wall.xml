@@ -1,0 +1,27 @@
+<mujoco>
+  <asset>
+    <material name="wall_mat" rgba="0.1 0.3 0.8 1" reflectance="0.5" />
+  </asset>
+
+  <worldbody>
+    <body name="wall1_body" pos="1.5 -1 0.5">
+      <geom name="wall1_geom"
+            type="box"
+            size="0.025 0.2 0.5"
+            material="wall_mat"
+            friction="0.5 0.005 0.0001"
+            contype="1"
+            conaffinity="1"/>
+    </body>
+
+    <body name="wall2_body" pos="1.5 1 0.5">
+      <geom name="wall2_geom"
+            type="box"
+            size="0.025 0.2 0.5"
+            material="wall_mat"
+            friction="0.5 0.005 0.0001"
+            contype="1"
+            conaffinity="1"/>
+    </body>
+  </worldbody>
+</mujoco>
