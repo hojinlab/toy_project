@@ -3,7 +3,7 @@
 
   <option integrator="implicitfast"/>
 
-  <!-- Default111 -->
+  <!-- Default -->
   <default>
     <joint limited="false" armature="0.01" />
     <!-- rolling joint -->
