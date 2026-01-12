@@ -27,7 +27,6 @@ class TurtlebotFactorySim:
     MuJoCo 기반 터틀봇3 팩토리 시뮬 통합 클래스.
 
     기능:
-    - tb3_factory_cards.xml 로드
     - 메인뷰 + 로봇 카메라 렌더링
     - latest_frame 에 로봇 카메라 마지막 프레임(BGR) 저장
     - (옵션) YOLO로 로봇 카메라 프레임 감지 & cv2 창으로 출력
