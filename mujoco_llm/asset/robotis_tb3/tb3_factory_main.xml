@@ -1,6 +1,6 @@
 <mujoco model="tb3_factory">
   <compiler angle="radian"
-            meshdir="/Users/hkim/Documents/UROP/mujoco_llm_copy/asset/robotis_tb3/assets"
+            meshdir="/Users/hkim/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/assets"
             autolimits="true"/>
 
   <include file="factory.xml"/>
