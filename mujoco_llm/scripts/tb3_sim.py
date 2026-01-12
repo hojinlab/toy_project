@@ -159,7 +159,7 @@ class TurtlebotFactorySim:
             "SEARCH_HEART": "heart",
             "SEARCH_STAR": "star",   
             "SEARCH_CUBE": "cube",
-            "SEARCH_TETRA": "tetrahedron",
+            "SEARCH_TETRAHEDRON": "tetrahedron",
             "SEARCH_SPHERE": "sphere",
         }
 
@@ -229,30 +229,62 @@ class TurtlebotFactorySim:
 
     # 잡기
     def _arm_grasp(self):
-        # 바퀴 멈추기
+        print("[ARM] Approaching with wheels...")
+
+        # 1️⃣ 바퀴로 전진
+        self.data.ctrl[0] = 3.0
+        self.data.ctrl[1] = 3.0
+
+        hold_start = None
+
+        while True:
+            us = self.read_ultrasonic()
+            if us is None:
+                continue
+
+            # 2️⃣ 초음파 조건 체크
+            if us <= self.ultra_threshold_m:
+                if hold_start is None:
+                    hold_start = time.time()
+
+                held = time.time() - hold_start
+                if held >= self.ultra_hold_sec:
+                    print(f"[ARM] Ultrasonic OK (us={us:.3f}m)")
+                    break
+            else:
+                hold_start = None
+
+            time.sleep(0.01)  # 시뮬 프리즈 방지
+
+        # 3️⃣ 바퀴 정지
         self.data.ctrl[0] = 0.0
         self.data.ctrl[1] = 0.0
 
-        # 팔 전진
+        print("[ARM] Stop & start arm sequence")
+
+        # 4️⃣ 팔 전진
         self.data.ctrl[3] = 0.2
         self.data.ctrl[5] = 0.2
+        time.sleep(0.4)
 
-        # 팔 접기
+        # 5️⃣ 팔 접기
         self.data.ctrl[2] = 1.57
         self.data.ctrl[4] = -1.57
+        time.sleep(0.3)
 
-        # 손가락 접기
+        # 6️⃣ 손가락 닫기
         self.data.ctrl[7] = -2.36
         self.data.ctrl[8] = 2.36
         self.data.ctrl[10] = -2.36
         self.data.ctrl[11] = 2.36
+        time.sleep(0.2)
 
-        # 압력 주기
+        # 7️⃣ 압력
         self.data.ctrl[6] = 0.01
         self.data.ctrl[9] = 0.01
 
         self.arm_state = "HOLDING"
-        print("[ARM_SEQ] GRASP")
+        print("[ARM_SEQ] GRASP COMPLETE")
 
 
     def _arm_release(self):
@@ -263,16 +295,19 @@ class TurtlebotFactorySim:
         # 압력 풀기
         self.data.ctrl[6] = 0
         self.data.ctrl[9] = 0
+        time.sleep(0.5)
 
         # 손가락 펴기
         self.data.ctrl[7] = 0
         self.data.ctrl[8] = 0
         self.data.ctrl[10] = 0
         self.data.ctrl[11] = 0
+        time.sleep(0.5)
 
         # 팔 접기
         self.data.ctrl[2] = 1.57
         self.data.ctrl[4] = -1.57
+        time.sleep(0.5)
 
         # 팔 후진
         self.data.ctrl[3] = 0

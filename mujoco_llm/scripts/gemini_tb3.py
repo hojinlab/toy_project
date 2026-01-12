@@ -41,6 +41,7 @@ TARGET_MAP = {
     "sphere": "sphere",
     "ball": "sphere",
     "둥근것": "sphere",
+    "동그라미": "sphere",
 
     # 별 (Star)
     "별": "star",
@@ -134,7 +135,7 @@ class GeminiTb3:
                 # 1) 목표가 있는데 화면에 없으면: SEARCH 모드로 전환하고 이 턴은 끝
                 if target and target not in det_dict:
                     cmd = SEARCH_CMD[target]
-                    print(f"➡️ '{target}' 카드가 안 보여서 {cmd}로 탐색할게요.")
+                    print(f"➡️ '{target}'가 안보여서 {cmd}로 탐색할게요.")
                     self.command_queue.put(cmd)
 
                     # 여기서 LLM을 호출하면 "멈춤" 같은 액션이 또 들어와서 검색이 끊길 수 있음
