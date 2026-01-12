@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))  # 프로젝�
 from utils.mujoco_renderer import MuJoCoViewer
 
 # 사용할 XML 파일 경로
-XML_PATH = "/path/to/mujoco_llm_copy/asset/robotis_tb3/tb3_factory_main.xml"
+XML_PATH = "/path/to/toy_project/mujoco_llm/asset/robotis_tb3/tb3_factory_main.xml"
 
 # 저장 위치 (train 이미지)
 OUT_DIR = "img_dataset2/images"
