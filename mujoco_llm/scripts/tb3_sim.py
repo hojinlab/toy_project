@@ -56,14 +56,14 @@ class TurtlebotFactorySim:
         # ===== 경로 설정 =====
         script_path = os.path.abspath(__file__)
         scripts_dir = os.path.dirname(script_path)
-        project_root = os.path.dirname(scripts_dir)  # /data/jinsup/js_mujoco
+        project_root = os.path.dirname(scripts_dir)  
 
         if xml_path is None:
             xml_path = os.path.join(
                 project_root,
                 "asset",
                 "robotis_tb3",
-                "tb3_factory_cards.xml",
+                "tb3_factory_main.xml",
             )
 
         print(f"[TurtlebotFactorySim] Loading scene from: {xml_path}")
@@ -229,6 +229,7 @@ class TurtlebotFactorySim:
 
     # 잡기
     def _arm_grasp(self):
+        
         print("[ARM] Approaching with wheels...")
 
         # 1️⃣ 바퀴로 전진
@@ -340,6 +341,23 @@ class TurtlebotFactorySim:
         if img_bgr is None:
             return
         cv2.imshow(self.yolo_window_name, img_bgr)
+    
+    def _compute_alignment_error_px(self, bbox):
+        if bbox is None or self.latest_frame is None:
+            return None
+
+        x1, _, x2, _ = bbox
+        h, w = self.latest_frame.shape[:2]
+
+        x1 = max(0.0, min(float(w), float(x1)))
+        x2 = max(0.0, min(float(w), float(x2)))
+
+        left_margin = float(x1)
+        right_margin = float(w) - float(x2)
+
+        # 목표: 0 (정중앙)
+        return float(left_margin - right_margin)
+
 
     # ------------------------------------------------------------------
     # 메인 루프
@@ -361,15 +379,31 @@ class TurtlebotFactorySim:
                 # 3.5) 검색 모드라면: YOLO로 타겟 감시
                 if self.search_target_label is not None:
                     det = self.yolo_detect_dict()
-                    if self.search_target_label in det:
-                        # 타겟 발견 → 정지 + 검색 종료
-                        self.data.ctrl[0] = 0.0
-                        self.data.ctrl[1] = 0.0
-                        print(f"[TurtlebotFactorySim] Found '{self.search_target_label}' → stop search.")
-                        self.search_target_label = None
-                        self.current_action = None
-                        self.action_end_sim_time = 0.0
-                        self.is_busy = False
+
+                    bbox = self._get_target_best_bbox(det, self.search_target_label)
+
+                    err_px = self._compute_alignment_error_px(bbox)
+
+                    if err_px is None:
+                        # 아직 못 찾음 → 계속 회전
+                        self.data.ctrl[0] = 4.0
+                        self.data.ctrl[1] = -4.0
+                    else:
+                        turn_cmd = self._compute_auto_turn_from_error(err_px)
+
+                        # 제자리 회전으로 정렬
+                        self.data.ctrl[0] = -turn_cmd
+                        self.data.ctrl[1] = +turn_cmd
+
+                        # 중앙 정렬 완료 조건
+                        if abs(err_px) < self.ALIGN_TOL_PX:
+                            self.data.ctrl[0] = 0.0
+                            self.data.ctrl[1] = 0.0
+                            print("[SEARCH] aligned → stop search")
+                            self.search_target_label = None
+                            self.current_action = None
+                            self.is_busy = False
+
 
                 # 4) 일반 액션 duration 기반 정지 (검색 모드일 땐 X)
                 if (
