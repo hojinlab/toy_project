@@ -131,7 +131,6 @@ class TurtlebotFactorySim:
         SEARCH_MAP = {
             "SEARCH_HEART":   "heart",
             "SEARCH_SPADE":   "spade",   
-            "SEARCH_DIAMOND": "diamond",
         }
 
         if cmd in SEARCH_MAP:
