@@ -132,7 +132,6 @@ class TurtlebotFactorySim:
             "SEARCH_HEART":   "heart",
             "SEARCH_SPADE":   "spade",   
             "SEARCH_DIAMOND": "diamond",
-            "SEARCH_CLUB":    "club",
         }
 
         if cmd in SEARCH_MAP:
