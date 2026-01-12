@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# YOLO
+# YOLO Hi
 from ultralytics import YOLO
 import cv2
 
