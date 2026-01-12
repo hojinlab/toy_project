@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
 from utils.mujoco_renderer import MuJoCoViewer
 from utils.object_detector import ObjectDetector
 
-ACTION_TABLE = {
+WHEEL_ACTION = {
     "멈춤": (0.0, 0.0),
     "직진": (8.0, 8.0),
     "후진": (-8.0, -8.0),
@@ -22,11 +22,17 @@ ACTION_TABLE = {
     "제자리 회전": (4.0, -4.0),
 }
 
+ARM_ACTIONS = {
+    "잡기",
+    "놓기",
+}
+
 class TurtlebotFactorySim:
     """
     MuJoCo 기반 터틀봇3 팩토리 시뮬 통합 클래스.
 
     기능:
+    - tb3_factory_cards.xml 로드
     - 메인뷰 + 로봇 카메라 렌더링
     - latest_frame 에 로봇 카메라 마지막 프레임(BGR) 저장
     - (옵션) YOLO로 로봇 카메라 프레임 감지 & cv2 창으로 출력
@@ -44,10 +50,13 @@ class TurtlebotFactorySim:
         current_action = None,
         action_end_sim_time = 0.0,
     ):
+        # ==== 행동 중 명령 금지위한 초기값 ====
+        self.is_busy = False
+
         # ===== 경로 설정 =====
         script_path = os.path.abspath(__file__)
         scripts_dir = os.path.dirname(script_path)
-        project_root = os.path.dirname(scripts_dir)  # /Users/hkim/Documents/UROP/mujoco_llm_copy
+        project_root = os.path.dirname(scripts_dir)  # /data/jinsup/js_mujoco
 
         if xml_path is None:
             xml_path = os.path.join(
@@ -66,6 +75,9 @@ class TurtlebotFactorySim:
         # ===== MuJoCo 모델/데이터 로드 =====
         self.model = mj.MjModel.from_xml_path(xml_path)
         self.data = mj.MjData(self.model)
+
+        # === 센서값 초기화 ===
+        self.us_sid, self.us_adr, self.us_dim = self._cache_sensor("ultrasonic")
 
         # 기존 MuJoCoViewer 사용
         self.viewer = MuJoCoViewer(self.model, self.data)
@@ -124,49 +136,151 @@ class TurtlebotFactorySim:
 
         self.viewer.poll_events()
 
+    # 센서 값 읽어오기
+    def _cache_sensor(self, sensor_name: str):
+        sid = mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_SENSOR, sensor_name)
+        if sid < 0:
+            return None, None, None
+        adr = int(self.model.sensor_adr[sid])
+        dim = int(self.model.sensor_dim[sid])
+        return sid, adr, dim
+
+    def read_ultrasonic(self):
+        if self.us_adr is None:
+            return None
+        return float(self.data.sensordata[self.us_adr])
+
+    # 명령 처리 로직
     def apply_command(self, cmd: str, base_duration: float = 1.0):
         cmd = cmd.strip()
 
-        # 1) 카드 검색 계열 액션 처리
+        # 1) 검색 계열 액션 처리 
         SEARCH_MAP = {
-            "SEARCH_HEART":   "heart",
-            "SEARCH_SPADE":   "spade",   
+            "SEARCH_HEART": "heart",
+            "SEARCH_STAR": "star",   
+            "SEARCH_CUBE": "cube",
+            "SEARCH_TETRA": "tetrahedron",
+            "SEARCH_SPHERE": "sphere",
         }
 
+        if self.is_busy:
+            print(f"[BUSY] Ignored command: {cmd}")
+            return
+    
         if cmd in SEARCH_MAP:
             target = SEARCH_MAP[cmd]
             self.search_target_label = target
 
-            # 제자리 회전 시작 (좌우 반대 방향으로)
             self.data.ctrl[0] = 4.0
             self.data.ctrl[1] = -4.0
 
             self.current_action = cmd
-            # 검색 모드는 duration으로 멈추지 않게, action_end_sim_time은 무시
             self.action_end_sim_time = float("inf")
 
-            print(f"[TurtlebotFactorySim] Start search for '{target}' (cmd={cmd})")
+            self.is_busy = True
+
+            print(f"[SEARCH] Start search for '{target}'")
             return
 
-        # 2) 일반 ACTION_TABLE 기반 액션 처리
-        if cmd not in ACTION_TABLE:
+        # 2) 알 수 없는 명령 체크 (버그 수정)
+        if cmd not in WHEEL_ACTION and cmd not in ARM_ACTIONS:
             print(f"[TurtlebotFactorySim] Unknown command: {cmd}")
             return
 
+        # 3) ARM 액션 처리 (추가)
+        if cmd in ARM_ACTIONS:
+            self.apply_arm_action(cmd)
+            return
+
+        # 4) 기존 WHEEL 액션 처리 (그대로 유지)
         duration = base_duration
         if cmd in ["좌회전", "우회전"]:
             duration *= 1.6
         elif cmd == "제자리 회전":
             duration *= 1.0
 
-        left, right = ACTION_TABLE[cmd]
+        left, right = WHEEL_ACTION[cmd]
         self.data.ctrl[0] = left
         self.data.ctrl[1] = right
 
         self.current_action = cmd
         self.action_end_sim_time = self.data.time + duration
 
-        print(f"[TurtlebotFactorySim] Command '{cmd}' → L={left}, R={right}, duration={duration:.2f}s")
+        self.is_busy = True 
+
+        print(f"[WHEEL] '{cmd}' → L={left}, R={right}, duration={duration:.2f}s")
+
+    def apply_arm_action(self, arm_cmd: str):
+        """
+        의미 명령을 받아
+        어떤 저수준 팔 시퀀스를 실행할지 연결만 한다
+        """
+        if self.is_busy: #동작중이면 무시
+            return
+        self.is_busy = True
+
+        if arm_cmd == "잡기":
+            self._arm_grasp()
+        elif arm_cmd == "놓기":
+            self._arm_release()
+        else:
+            print(f"[ARM] Unknown arm_cmd: {arm_cmd}")
+        self.is_busy = False
+
+    # 잡기
+    def _arm_grasp(self):
+        # 바퀴 멈추기
+        self.data.ctrl[0] = 0.0
+        self.data.ctrl[1] = 0.0
+
+        # 팔 전진
+        self.data.ctrl[3] = 0.2
+        self.data.ctrl[5] = 0.2
+
+        # 팔 접기
+        self.data.ctrl[2] = 1.57
+        self.data.ctrl[4] = -1.57
+
+        # 손가락 접기
+        self.data.ctrl[7] = -2.36
+        self.data.ctrl[8] = 2.36
+        self.data.ctrl[10] = -2.36
+        self.data.ctrl[11] = 2.36
+
+        # 압력 주기
+        self.data.ctrl[6] = 0.01
+        self.data.ctrl[9] = 0.01
+
+        self.arm_state = "HOLDING"
+        print("[ARM_SEQ] GRASP")
+
+
+    def _arm_release(self):
+        # 바퀴 멈추기
+        self.data.ctrl[0] = 0.0
+        self.data.ctrl[1] = 0.0
+
+        # 압력 풀기
+        self.data.ctrl[6] = 0
+        self.data.ctrl[9] = 0
+
+        # 손가락 펴기
+        self.data.ctrl[7] = 0
+        self.data.ctrl[8] = 0
+        self.data.ctrl[10] = 0
+        self.data.ctrl[11] = 0
+
+        # 팔 접기
+        self.data.ctrl[2] = 1.57
+        self.data.ctrl[4] = -1.57
+
+        # 팔 후진
+        self.data.ctrl[3] = 0
+        self.data.ctrl[5] = 0
+
+        self.arm_state = "IDLE"
+        print("[ARM_SEQ] RELEASE")
+
 
     def _process_commands(self):
         """command_queue 에 쌓인 명령들을 한 번에 처리."""
@@ -220,6 +334,7 @@ class TurtlebotFactorySim:
                         self.search_target_label = None
                         self.current_action = None
                         self.action_end_sim_time = 0.0
+                        self.is_busy = False
 
                 # 4) 일반 액션 duration 기반 정지 (검색 모드일 땐 X)
                 if (
@@ -231,6 +346,7 @@ class TurtlebotFactorySim:
                     self.data.ctrl[1] = 0.0
                     print(f"[TurtlebotFactorySim] '{self.current_action}' 완료 → stop.")
                     self.current_action = None
+                    self.is_busy = False
 
                 # 5) YOLO 디스플레이
                 if self.use_yolo:
