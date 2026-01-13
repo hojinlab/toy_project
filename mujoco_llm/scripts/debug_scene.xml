@@ -19,7 +19,10 @@
     <mesh name="left_tire" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/left_tire.stl" scale="0.001 0.001 0.001"/>
     <mesh name="right_tire" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/right_tire.stl" scale="0.001 0.001 0.001"/>
     <mesh name="lds" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/lds.stl" scale="0.001 0.001 0.001"/>
-    <mesh name="camera" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/camera.stl"/>
+    <mesh name="camera" file="/path/to/toy_project/mujoco_llm/asset/robotisrsync -avz --progress \
+~/path/to/toy_project \
+user@host:/home/user/
+_tb3/camera.stl"/>
     <mesh name="lidar" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/lidar.stl" scale="0.001 0.001 0.001"/>
     <mesh name="ul_sensor" file="/path/to/toy_project/mujoco_llm/asset/robotis_tb3/ul_sensor.stl"/>
   </asset>
