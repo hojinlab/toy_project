@@ -121,7 +121,13 @@ class GeminiTb3:
 
     # ----------------------------------------
     def talk(self, sim):
+        was_busy = False
+
         while not self.stop_event.is_set():
+
+            if was_busy and (not sim.is_busy):
+                print("✅ 동작이 끝났습니다. 다음 명령을 입력하세요.")
+            
             try:
                 question = input("\n💬 Human: ")
 
