@@ -49,9 +49,22 @@ class TurtlebotFactorySim:
         fps: int = 60,
         current_action = None,
         action_end_sim_time = 0.0,
+
+        
     ):
         # ==== 행동 중 명령 금지위한 초기값 ====
         self.is_busy = False
+
+        # ===== SEARCH/ALIGN 파라미터 =====
+        self.ALIGN_TOL_PX = 12            # 중앙 정렬 허용 오차(픽셀)
+        self.SEARCH_TURN_SPEED = 4.0      # 못 찾을 때 회전 속도(바퀴 제어값)
+        self.ALIGN_TURN_MAX = 6.0         # 정렬 때 최대 회전 제어값
+        self.ALIGN_KP = 0.01              # 픽셀 오차 -> 회전 제어로 바꾸는 비례게인
+
+        # ===== ARM 파라미터(현재 _arm_grasp에서 사용) =====
+        self.ultra_threshold_m = 0.05     # 초음파 임계값 (m)
+        self.ultra_hold_sec = 0.05        # 임계값 이하 유지 시간 (sec)
+        self.arm_state = "IDLE"
 
         # ===== 경로 설정 =====
         script_path = os.path.abspath(__file__)
@@ -358,7 +371,98 @@ class TurtlebotFactorySim:
         # 목표: 0 (정중앙)
         return float(left_margin - right_margin)
 
+    def _get_target_best_bbox(self, det: dict, target_label: str):
 
+        if not det or (target_label not in det):
+            return None
+
+        items = det.get(target_label)
+        if items is None:
+            return None
+
+        # items가 단일 dict일 수도, list일 수도 있음
+        if isinstance(items, dict):
+            items = [items]
+
+        # 후보 bbox들을 (bbox, score) 형태로 모아서 최고점 선택
+        candidates = []
+
+        for it in items:
+            # 1) dict 형태: {"bbox":[x1,y1,x2,y2], "conf":0.8} 또는 {"xyxy":[...], "confidence":...}
+            if isinstance(it, dict):
+                bbox = None
+                for key in ("bbox", "xyxy", "box"):
+                    if key in it:
+                        bbox = it[key]
+                        break
+
+                conf = None
+                for key in ("conf", "confidence", "score"):
+                    if key in it:
+                        conf = it[key]
+                        break
+
+                if bbox is None:
+                    continue
+
+                try:
+                    x1, y1, x2, y2 = map(float, bbox[:4])
+                except Exception:
+                    continue
+
+                # 점수: conf가 있으면 conf, 없으면 bbox 면적
+                score = float(conf) if conf is not None else max(0.0, (x2 - x1) * (y2 - y1))
+                candidates.append(((x1, y1, x2, y2), score))
+                continue
+
+            # 2) list/tuple 형태: [x1,y1,x2,y2,conf] 또는 [x1,y1,x2,y2]
+            if isinstance(it, (list, tuple)) and len(it) >= 4:
+                try:
+                    x1, y1, x2, y2 = map(float, it[:4])
+                except Exception:
+                    continue
+
+                conf = None
+                if len(it) >= 5:
+                    try:
+                        conf = float(it[4])
+                    except Exception:
+                        conf = None
+
+                score = conf if conf is not None else max(0.0, (x2 - x1) * (y2 - y1))
+                candidates.append(((x1, y1, x2, y2), score))
+                continue
+
+        if not candidates:
+            return None
+
+        # score 최고인 bbox 반환
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[0][0]
+
+    def _compute_auto_turn_from_error(self, err_px: float) -> float:
+
+        if err_px is None:
+            return 0.0
+
+        kp = 0.015       # 비례 제어 상수
+        min_turn = 0.8   # 느릿느릿해지는 것을 방지하는 최소 회전 속도
+        max_turn = 3.0   # 최대 회전 속도 제한
+
+        # 1. 정렬 범위 안에 들어왔다면 정지
+        if abs(err_px) < self.ALIGN_TOL_PX:
+            return 0.0
+
+        # 2. 비례 제어 계산
+        turn = err_px * kp
+
+        # 3. 최소/최대 속도 보정 (Deadband 및 Saturation 처리)
+        direction = 1 if turn > 0 else -1
+        # 최소 속도(min_turn)보다는 크고, 최대 속도(max_turn)보다는 작게 클리핑
+        turn = direction * max(min_turn, min(max_turn, abs(turn)))
+
+        return float(turn)
+    
     # ------------------------------------------------------------------
     # 메인 루프
     # ------------------------------------------------------------------
@@ -386,8 +490,8 @@ class TurtlebotFactorySim:
 
                     if err_px is None:
                         # 아직 못 찾음 → 계속 회전
-                        self.data.ctrl[0] = 4.0
-                        self.data.ctrl[1] = -4.0
+                        self.data.ctrl[0] = self.SEARCH_TURN_SPEED
+                        self.data.ctrl[1] = -self.SEARCH_TURN_SPEED
                     else:
                         turn_cmd = self._compute_auto_turn_from_error(err_px)
 
