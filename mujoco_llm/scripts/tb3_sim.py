@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import threading
 from queue import Queue
 
 import mujoco as mj
@@ -12,11 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
 from utils.mujoco_renderer import MuJoCoViewer
 from utils.object_detector import ObjectDetector
 
-
-# ============================================================
-# Action 정의
-# ============================================================
-WHEEL_ACTION = {
+ACTION_TABLE = {
     "멈춤": (0.0, 0.0),
     "직진": (8.0, 8.0),
     "후진": (-8.0, -8.0),
@@ -25,340 +22,237 @@ WHEEL_ACTION = {
     "제자리 회전": (4.0, -4.0),
 }
 
-ARM_ACTIONS = {"잡기", "놓기"}
-
-
-# ============================================================
-# TurtlebotFactorySim
-# ============================================================
 class TurtlebotFactorySim:
     """
-    MuJoCo 기반 터틀봇3 팩토리 시뮬 통합 클래스
+    MuJoCo 기반 터틀봇3 팩토리 시뮬 통합 클래스.
+
+    기능:
+    - tb3_factory_cards.xml 로드
+    - 메인뷰 + 로봇 카메라 렌더링
+    - latest_frame 에 로봇 카메라 마지막 프레임(BGR) 저장
+    - (옵션) YOLO로 로봇 카메라 프레임 감지 & cv2 창으로 출력
+    - (옵션) command_queue 에서 명령을 읽어와 apply_command()로 처리
     """
 
     def __init__(
         self,
-        xml_path=None,
-        use_yolo=False,
-        yolo_weight_path=None,
-        yolo_conf=0.5,
-        command_queue=None,
-        fps=60,
-        current_action=None,
-        action_end_sim_time=0.0,
+        xml_path: str | None = None,
+        use_yolo: bool = False,
+        yolo_weight_path: str | None = None,
+        yolo_conf: float = 0.5,
+        command_queue: Queue | None = None,
+        fps: int = 60,
+        current_action = None,
+        action_end_sim_time = 0.0,
     ):
-        # ===== 상태 플래그 =====
-        self.is_busy = False
-
-        # ===== SEARCH / ALIGN 파라미터 =====
-        self.ALIGN_TOL_PX = 12
-        self.SEARCH_TURN_SPEED = 4.0
-        self.ALIGN_KP = 0.015
-
-        # ===== ARM / 초음파 =====
-        self.ultra_threshold_m = 0.05
-        self.ultra_hold_sec = 0.05
-        self.arm_state = "IDLE"
-
-        # ===== 경로 =====
+        # ===== 경로 설정 =====
         script_path = os.path.abspath(__file__)
         scripts_dir = os.path.dirname(script_path)
-        project_root = os.path.dirname(scripts_dir)
+        project_root = os.path.dirname(scripts_dir)  # /Users/hkim/Documents/UROP/mujoco_llm_copy
 
         if xml_path is None:
             xml_path = os.path.join(
                 project_root,
                 "asset",
                 "robotis_tb3",
-                "tb3_factory_main.xml",
+                "tb3_factory_cards.xml",
             )
 
         print(f"[TurtlebotFactorySim] Loading scene from: {xml_path}")
 
-        # ===== 탐색 타겟 =====
+        # 검색 모드 타겟 레이블
         self.search_target_label = None
         self.current_action = current_action
         self.action_end_sim_time = action_end_sim_time
-
-        # ===== MuJoCo =====
+        # ===== MuJoCo 모델/데이터 로드 =====
         self.model = mj.MjModel.from_xml_path(xml_path)
         self.data = mj.MjData(self.model)
 
-        # ===== 센서 =====
-        self.us_sid, self.us_adr, self.us_dim = self._cache_sensor("ultrasonic")
-
-        # ===== Viewer =====
+        # 기존 MuJoCoViewer 사용
         self.viewer = MuJoCoViewer(self.model, self.data)
 
-        # ===== 카메라 프레임 =====
-        self.latest_frame = None
+        # ===== 카메라 프레임 저장용 =====
+        # 항상 "로봇 카메라 기준 BGR 이미지"를 최신 상태로 보관
+        self.latest_frame: np.ndarray | None = None
 
-        # ===== YOLO =====
+        # ===== YOLO 옵션 =====
         self.use_yolo = use_yolo
         self.detector = None
         self.yolo_window_name = "Robot YOLO View"
 
         if self.use_yolo:
             if yolo_weight_path is None:
-                raise ValueError("YOLO weight path missing")
-            self.detector = ObjectDetector(yolo_weight_path, conf=yolo_conf)
-            cv2.namedWindow(self.yolo_window_name, cv2.WINDOW_NORMAL)
+                raise ValueError("use_yolo=True 인데 yolo_weight_path 가 없습니다.")
+            if not os.path.exists(yolo_weight_path):
+                raise FileNotFoundError(f"YOLO weight not found: {yolo_weight_path}")
 
-        self.command_queue = command_queue if command_queue else Queue()
+            print(f"[TurtlebotFactorySim] Loading ObjectDetector: {yolo_weight_path}")
+            self.detector = ObjectDetector(yolo_weight_path, conf=yolo_conf)
+
+            cv2.namedWindow(self.yolo_window_name, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self.yolo_window_name, 640, 480)
+
+        # ===== 명령 큐 (LLM / 키보드 등에서 넣어주는 명령) =====
+        self.command_queue = command_queue if command_queue is not None else Queue()
+
+        # ===== 루프 설정 =====
         self.fps = fps
         self._running = False
 
-    # ============================================================
-    # 기본 유틸
-    # ============================================================
-    def _cache_sensor(self, sensor_name):
-        sid = mj.mj_name2id(self.model, mj.mjtObj.mjOBJ_SENSOR, sensor_name)
-        if sid < 0:
-            return None, None, None
-        return sid, int(self.model.sensor_adr[sid]), int(self.model.sensor_dim[sid])
-
-    def read_ultrasonic(self):
-        if self.us_adr is None:
-            return None
-        return float(self.data.sensordata[self.us_adr])
-
+    # ------------------------------------------------------------------
+    # 외부에서 사용할 수 있는 유틸 메서드들
+    # ------------------------------------------------------------------
     def step_simulation(self):
+        """한 타임스텝(fps 기준)만큼 시뮬레이션을 진행."""
         time_prev = self.data.time
         dt = 1.0 / self.fps
         while self.data.time - time_prev < dt:
             self.viewer.step_simulation()
 
     def render(self):
+        """메인뷰 + 로봇 카메라 렌더링, latest_frame 업데이트."""
+        # 메인 뷰: IMU overlay
         self.viewer.render_main(overlay_type="imu")
+
+        # 로봇 카메라 화면 표시 + 이미지 캡처
         self.viewer.render_robot()
+        # MuJoCoViewer 안에 capture_img() 가 로봇 카메라 뷰를 BGR로 반환한다고 가정
         if hasattr(self.viewer, "capture_img"):
-            self.latest_frame = self.viewer.capture_img()
+            frame_bgr = self.viewer.capture_img()
+            self.latest_frame = frame_bgr
+        else:
+            self.latest_frame = None
+
         self.viewer.poll_events()
 
-    # ============================================================
-    # 명령 처리
-    # ============================================================
-    def apply_command(self, cmd, base_duration=1.0):
+    def apply_command(self, cmd: str, base_duration: float = 1.0):
         cmd = cmd.strip()
 
+        # 1) 카드 검색 계열 액션 처리
         SEARCH_MAP = {
-            "SEARCH_HEART": "heart",
-            "SEARCH_STAR": "star",
-            "SEARCH_CUBE": "cube",
-            "SEARCH_TETRAHEDRON": "tetrahedron",
-            "SEARCH_SPHERE": "sphere",
+            "SEARCH_HEART":   "heart",
+            "SEARCH_SPADE":   "spade",
+            "SEARCH_DIAMOND": "diamond",
+            "SEARCH_CLUB":    "club",
         }
 
-        if self.is_busy:
-            return
-
-        # --- SEARCH ---
         if cmd in SEARCH_MAP:
-            self.search_target_label = SEARCH_MAP[cmd]
+            target = SEARCH_MAP[cmd]
+            self.search_target_label = target
+
+            # 제자리 회전 시작 (좌우 반대 방향으로)
+            self.data.ctrl[0] = 4.0
+            self.data.ctrl[1] = -4.0
+
             self.current_action = cmd
+            # 검색 모드는 duration으로 멈추지 않게, action_end_sim_time은 무시
             self.action_end_sim_time = float("inf")
-            self.is_busy = True
-            print(f"[SEARCH] Start search: {self.search_target_label}")
+
+            print(f"[TurtlebotFactorySim] Start search for '{target}' (cmd={cmd})")
             return
 
-        # --- ARM ---
-        if cmd in ARM_ACTIONS:
-            self.apply_arm_action(cmd)
-            return
-
-        # --- WHEEL ---
-        if cmd not in WHEEL_ACTION:
-            print(f"[WARN] Unknown command: {cmd}")
+        # 2) 일반 ACTION_TABLE 기반 액션 처리
+        if cmd not in ACTION_TABLE:
+            print(f"[TurtlebotFactorySim] Unknown command: {cmd}")
             return
 
         duration = base_duration
         if cmd in ["좌회전", "우회전"]:
             duration *= 1.6
+        elif cmd == "제자리 회전":
+            duration *= 1.0
 
-        l, r = WHEEL_ACTION[cmd]
-        self.data.ctrl[0] = l
-        self.data.ctrl[1] = r
+        left, right = ACTION_TABLE[cmd]
+        self.data.ctrl[0] = left
+        self.data.ctrl[1] = right
 
         self.current_action = cmd
         self.action_end_sim_time = self.data.time + duration
-        self.is_busy = True
 
-        print(f"[WHEEL] {cmd} ({duration:.2f}s)")
+        print(f"[TurtlebotFactorySim] Command '{cmd}' → L={left}, R={right}, duration={duration:.2f}s")
 
-    # ============================================================
-    # ARM ACTION (MODIFIED)
-    # ============================================================
-    def apply_arm_action(self, arm_cmd):
-        if self.is_busy:
-            return
+    def _process_commands(self):
+        """command_queue 에 쌓인 명령들을 한 번에 처리."""
+        while not self.command_queue.empty():
+            cmd = self.command_queue.get()
+            self.apply_command(cmd)
 
-        self.is_busy = True
-
-        if arm_cmd == "잡기":
-            success = self._arm_grasp()
-
-            # 🔧 초음파 실패 → 탐색 복귀
-            if not success:
-                print("[ARM] Grasp failed → back to SEARCH")
-                self.is_busy = False
-                return
-
-        elif arm_cmd == "놓기":
-            self._arm_release()
-
-        self.is_busy = False
-
-    # ============================================================
-    # ARM GRASP (MODIFIED)
-    # ============================================================
-    def _arm_grasp(self):
-        print("[ARM] Approaching object")
-
-        self.data.ctrl[0] = 3.0
-        self.data.ctrl[1] = 3.0
-
-        hold_start = None
-        timeout_start = time.time()
-        TIMEOUT = 3.0
-
-        while True:
-            if time.time() - timeout_start > TIMEOUT:
-                self.data.ctrl[0] = 0.0
-                self.data.ctrl[1] = 0.0
-                print("[ARM] Ultrasonic timeout")
-                return False
-
-            us = self.read_ultrasonic()
-            if us is None:
-                time.sleep(0.01)
-                continue
-
-            if us <= self.ultra_threshold_m:
-                if hold_start is None:
-                    hold_start = time.time()
-                if time.time() - hold_start >= self.ultra_hold_sec:
-                    break
-            else:
-                hold_start = None
-
-            time.sleep(0.01)
-
-        self.data.ctrl[0] = 0.0
-        self.data.ctrl[1] = 0.0
-
-        # ---- Arm sequence ----
-        self.data.ctrl[3] = 0.2
-        self.data.ctrl[5] = 0.2
-        time.sleep(0.4)
-
-        self.data.ctrl[2] = 1.57
-        self.data.ctrl[4] = -1.57
-        time.sleep(0.3)
-
-        self.data.ctrl[7] = -2.36
-        self.data.ctrl[8] = 2.36
-        self.data.ctrl[10] = -2.36
-        self.data.ctrl[11] = 2.36
-        time.sleep(0.2)
-
-        self.data.ctrl[6] = 0.01
-        self.data.ctrl[9] = 0.01
-
-        self.arm_state = "HOLDING"
-        print("[ARM] GRASP COMPLETE")
-        return True
-
-    def _arm_release(self):
-        self.data.ctrl[0] = 0.0
-        self.data.ctrl[1] = 0.0
-
-        self.data.ctrl[6] = 0
-        self.data.ctrl[9] = 0
-        time.sleep(0.3)
-
-        self.data.ctrl[7] = 0
-        self.data.ctrl[8] = 0
-        self.data.ctrl[10] = 0
-        self.data.ctrl[11] = 0
-        time.sleep(0.3)
-
-        self.arm_state = "IDLE"
-        print("[ARM] RELEASE")
-
-    # ============================================================
-    # YOLO & ALIGN
-    # ============================================================
     def yolo_detect_dict(self):
-        if not self.use_yolo or self.latest_frame is None:
+        if (not self.use_yolo) or (self.detector is None) or (self.latest_frame is None):
             return {}
         return self.detector.detect_dict(self.latest_frame)
 
-    def _compute_alignment_error_px(self, bbox):
-        if bbox is None or self.latest_frame is None:
+    def yolo_detect_image(self):
+        if (not self.use_yolo) or (self.detector is None) or (self.latest_frame is None):
             return None
-        x1, _, x2, _ = bbox
-        h, w = self.latest_frame.shape[:2]
-        return float(x1 - (w - x2))
+        return self.detector.detect_image(self.latest_frame)
 
-    # ============================================================
-    # MAIN LOOP
-    # ============================================================
+    def _run_yolo_on_latest_frame(self):
+        if not self.use_yolo or self.detector is None:
+            return
+        img_bgr = self.yolo_detect_image()
+        if img_bgr is None:
+            return
+        cv2.imshow(self.yolo_window_name, img_bgr)
+
+    # ------------------------------------------------------------------
+    # 메인 루프
+    # ------------------------------------------------------------------
     def start(self):
         self._running = True
-        print("[SIM] Start")
-
+        print("[TurtlebotFactorySim] Start simulation loop.")
         try:
             while self._running and not self.viewer.should_close():
-                while not self.command_queue.empty():
-                    self.apply_command(self.command_queue.get())
+                # 1) 명령 처리
+                self._process_commands()
 
+                # 2) 시뮬레이션 한 스텝
                 self.step_simulation()
+
+                # 3) 렌더 + latest_frame 갱신
                 self.render()
 
-                # --- SEARCH MODE ---
-                if self.search_target_label:
+                # 3.5) 검색 모드라면: YOLO로 타겟 감시
+                if self.search_target_label is not None:
                     det = self.yolo_detect_dict()
-                    items = det.get(self.search_target_label)
+                    if self.search_target_label in det:
+                        # 타겟 발견 → 정지 + 검색 종료
+                        self.data.ctrl[0] = 0.0
+                        self.data.ctrl[1] = 0.0
+                        print(f"[TurtlebotFactorySim] Found '{self.search_target_label}' → stop search.")
+                        self.search_target_label = None
+                        self.current_action = None
+                        self.action_end_sim_time = 0.0
 
-                    if not items:
-                        self.data.ctrl[0] = self.SEARCH_TURN_SPEED
-                        self.data.ctrl[1] = -self.SEARCH_TURN_SPEED
-                    else:
-                        bbox = items[0]["bbox"] if isinstance(items, list) else None
-                        err = self._compute_alignment_error_px(bbox)
-
-                        if err is None or abs(err) > self.ALIGN_TOL_PX:
-                            turn = err * self.ALIGN_KP if err else self.SEARCH_TURN_SPEED
-                            self.data.ctrl[0] = turn
-                            self.data.ctrl[1] = -turn
-                        else:
-                            self.data.ctrl[0] = 0.0
-                            self.data.ctrl[1] = 0.0
-                            print("[SEARCH] Aligned")
-                            self.search_target_label = None
-                            self.current_action = None
-                            self.is_busy = False
-
-                # --- ACTION END ---
+                # 4) 일반 액션 duration 기반 정지 (검색 모드일 땐 X)
                 if (
                     self.current_action
-                    and not self.current_action.startswith("SEARCH")
+                    and not (self.current_action.startswith("SEARCH_"))
                     and self.data.time > self.action_end_sim_time
                 ):
                     self.data.ctrl[0] = 0.0
                     self.data.ctrl[1] = 0.0
+                    print(f"[TurtlebotFactorySim] '{self.current_action}' 완료 → stop.")
                     self.current_action = None
-                    self.is_busy = False
 
+                # 5) YOLO 디스플레이
+                if self.use_yolo:
+                    self._run_yolo_on_latest_frame()
+
+                # 6) q로 종료
                 if cv2.waitKey(1) & 0xFF == ord("q"):
+                    print("[TurtlebotFactorySim] 'q' 입력으로 종료합니다.")
                     break
 
+        except Exception as e:
+            print(f"\n[TurtlebotFactorySim] 시뮬레이션 중 예외 발생: {e}")
         finally:
             self.close()
 
     def close(self):
+        """시뮬레이션 종료 및 리소스 정리."""
         self._running = False
         if self.use_yolo:
-            cv2.destroyAllWindows()
+            cv2.destroyWindow(self.yolo_window_name)
         self.viewer.terminate()
-        print("[SIM] Terminated")
+        print("[TurtlebotFactorySim] Simulation terminated.")
