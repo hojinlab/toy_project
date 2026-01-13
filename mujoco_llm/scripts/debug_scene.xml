@@ -19,7 +19,10 @@
     <mesh name="left_tire" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/left_tire.stl" scale="0.001 0.001 0.001"/>
     <mesh name="right_tire" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/right_tire.stl" scale="0.001 0.001 0.001"/>
     <mesh name="lds" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/lds.stl" scale="0.001 0.001 0.001"/>
-    <mesh name="camera" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/camera.stl"/>
+    <mesh name="camera" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotisrsync -avz --progress \
+~/Documents/shared_UROP/toy_project \
+student2@lab602:/home/student2/
+_tb3/camera.stl"/>
     <mesh name="lidar" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/lidar.stl" scale="0.001 0.001 0.001"/>
     <mesh name="ul_sensor" file="/home/jungyun/Documents/shared_UROP/toy_project/mujoco_llm/asset/robotis_tb3/ul_sensor.stl"/>
   </asset>
