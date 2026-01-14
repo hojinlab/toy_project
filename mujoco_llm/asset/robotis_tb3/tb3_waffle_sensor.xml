@@ -155,7 +155,16 @@
       <body name="ul_sensor_mount" pos="0.1 0 0.04">
         <body name="ul_sensor_link" pos="0 0 0">
           <geom type="mesh" mesh="ul_sensor" rgba="0.07 0.34 0.63 1.0" pos="0 0 0"/>
-          <site name="us_rf" pos="0 0 0" size="0.001 0.001 0.001" rgba="0 0 0 0" zaxis="1 0 0"/>
+          <site name="us_rf_right" pos="0 -0.012 0" size="0.001 0.001 0.001" rgba="0 0 0 0" zaxis="1 0 0"/>
+          <site name="us_rf_left" pos="0 0.012 0" size="0.001 0.001 0.001" rgba="0 0 0 0" zaxis="1 0 0"/>
+        </body>
+      </body>
+
+      <body name="ul_sensor_mount_2" pos="-0.16 0 0.2">
+        <body name="ul_sensor_link_2" pos="0 0 0">
+          <geom type="mesh" mesh="ul_sensor" rgba="0.07 0.34 0.63 1.0" pos="0 0 0"/>
+          <site name="us_rf_right_2" pos="0 -0.012 0" size="0.001 0.001 0.001" rgba="0 0 0 0" zaxis="1 0 0"/>
+          <site name="us_rf_left_2" pos="0 0.012 0" size="0.001 0.001 0.001" rgba="0 0 0 0" zaxis="1 0 0"/>
         </body>
       </body>
     </body>
@@ -171,7 +180,8 @@
     <velocimeter    name="velocimeter"   site="imu"/>
 
     <rangefinder name="laser2" site="rf" cutoff="3.0"/>
-    <rangefinder name="ultrasonic" site="us_rf" cutoff="3.0"/>
+    <rangefinder name="ultrasonic_right" site="us_rf_right" cutoff="3.0"/>
+    <rangefinder name="ultrasonic_left" site="us_rf_left" cutoff="3.0"/>
   </sensor>
 
   <!-- Actuator -->
