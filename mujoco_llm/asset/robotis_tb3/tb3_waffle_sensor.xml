@@ -138,18 +138,23 @@
       </body>
 
       <!-- LiDAR (lds 위에 딱 얹기) -->
-      <body name="lidar_mount" pos="-0.032 0 0.172">
-        <body name="laser_link" pos="0 0 0">
-          <geom type="mesh" mesh="lidar" rgba="0.1 0.1 0.1 1" pos="0 0 0"/>
-          <replicate count="360" euler="0 0 1">
-            <site name="rf"
-                  size="0.001 0.001 0.001"
-                  rgba="0 0 0 0"
-                  pos="0.0 0.0 0.03"
-                  zaxis="1 0 0"/>
-          </replicate>
-        </body>
-      </body>
+<!--      <body name="lidar_mount" pos="-0.032 0 0.172">-->
+<!--        <body name="laser_link" pos="0 0 0">-->
+<!--          <geom type="mesh" mesh="lidar" rgba="0.1 0.1 0.1 1" pos="0 0 0"/>-->
+<!--          <replicate count="360" euler="0 0 1">-->
+<!--            <site name="rf"-->
+<!--                  size="0.001 0.001 0.001"-->
+<!--                  rgba="0 0 0 0"-->
+<!--                  pos="0.0 0.0 0.03"-->
+<!--                  zaxis="1 0 0"/>-->
+<!--          </replicate>-->
+<!--          <site name="lidar_000_site" pos="0 0 0.03" size="0.001 0.001 0.001" rgba="0 0 0 0" euler="0 1.57 0"/>-->
+<!--          <site name="lidar_001_site" pos="0 0 0.03" size="0.001 0.001 0.001" rgba="0 0 0 0" euler="0 1.57 0.01"/>-->
+<!--          <site name="lidar_002_site" pos="0 0 0.03" size="0.001 0.001 0.001" rgba="0 0 0 0" euler="0 1.57 0.02"/>-->
+<!--          <site name="lidar_359_site" pos="0 0 0.03" size="0.001 0.001 0.001" rgba="0 0 0 0" euler="0 1.57 -0.01"/>-->
+<!--          <site name="lidar_358_site" pos="0 0 0.03" size="0.001 0.001 0.001" rgba="0 0 0 0" euler="0 1.57 -0.01"/>-->
+<!--        </body>-->
+<!--      </body>-->
 
       <!-- 초음파 센서 (앞쪽 아래쪽, 그냥 박스 기하만) -->
       <body name="ul_sensor_mount" pos="0.1 0 0.04">
@@ -172,16 +177,20 @@
 
   <sensor>
     <!-- LiDAR -->
-    <rangefinder name="laser" site="rf" cutoff="3.0"/>
+<!--    <rangefinder name="laser" site="rf" cutoff="3.0"/>-->
 
     <!-- IMU -->
     <accelerometer name="accelerometer" site="imu"/>
     <gyro           name="gyro"          site="imu"/>
     <velocimeter    name="velocimeter"   site="imu"/>
 
-    <rangefinder name="laser2" site="rf" cutoff="3.0"/>
-    <rangefinder name="ultrasonic_right" site="us_rf_right" cutoff="3.0"/>
-    <rangefinder name="ultrasonic_left" site="us_rf_left" cutoff="3.0"/>
+    <!-- 몸통 초음파 -->
+    <rangefinder name="ultrasonic_right" site="us_rf_right" cutoff="5.0"/>
+    <rangefinder name="ultrasonic_left" site="us_rf_left" cutoff="5.0"/>
+
+    <!-- 머리 초음파 -->
+    <rangefinder name="ultrasonic_right_2" site="us_rf_right_2" cutoff="5.0"/>
+    <rangefinder name="ultrasonic_left_2" site="us_rf_left_2" cutoff="5.0"/>
   </sensor>
 
   <!-- Actuator -->
