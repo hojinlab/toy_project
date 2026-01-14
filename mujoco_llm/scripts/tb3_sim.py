@@ -62,7 +62,7 @@ class TurtlebotFactorySim:
         self.ALIGN_KP = 0.01  # 픽셀 오차 -> 회전 제어로 바꾸는 비례게인
 
         # ===== ARM 파라미터(현재 _arm_grasp에서 사용) =====
-        self.ultra_threshold_m = 0.1  # 초음파 임계값 (m)
+        self.ultra_threshold_m = 0.15  # 초음파 임계값 (m)
         self.ultra_hold_sec = 0.05  # 임계값 이하 유지 시간 (sec)
         self.arm_state = "IDLE"
 
@@ -91,7 +91,7 @@ class TurtlebotFactorySim:
         self.data = mj.MjData(self.model)
 
         # === 센서값 초기화 ===
-        self.us_sid, self.us_adr, self.us_dim = self._cache_sensor("ultrasonic")
+        self.us_sid, self.us_adr, self.us_dim = self._cache_sensor("ultrasonic_right")
         self._ultra_hold_start_simtime: float | None = None
 
         # 기존 MuJoCoViewer 사용
@@ -251,10 +251,10 @@ class TurtlebotFactorySim:
             target = APPROACH_MAP[cmd]
             self.approach_target_label = target
 
-            self.data.ctrl[0] = self.SEARCH_TURN_SPEED
+            self.data.ctrl[0] = self.SEARCH_TURN_SPEED# - 100 * (self.data.sensordata[9] - self.data.sensordata[10])
             self.data.ctrl[1] = self.SEARCH_TURN_SPEED
             self.current_action = cmd
-            self.action_end_sim_time = float("inf")
+            # self.action_end_sim_time = float("inf")
 
             self.is_busy = True
 
@@ -308,28 +308,36 @@ class TurtlebotFactorySim:
 
         self.is_busy = False
 
+    def wait_sim_time(self, seconds: float):
+        """지정한 초(seconds)만큼 시뮬레이션을 돌리며 대기합니다."""
+        start_time = self.data.time  # 현재 시뮬레이션 내부 시간
+        while self.data.time < start_time + seconds:
+            self.step_simulation()  # 물리 연산 수행
+            self.render()  # 그래픽 렌더링 (화면 갱신)
+
     # 잡기
     def _arm_grasp(self):
         # 바퀴 정지
         self.data.ctrl[0] = 0.0
         self.data.ctrl[1] = 0.0
+        self.wait_sim_time(1.0)
 
         print("[ARM] Start arm grasp sequence")
 
         # ===== 기존 팔 제어 시퀀스 그대로 =====
         self.data.ctrl[3] = 0.2
         self.data.ctrl[5] = 0.2
-        time.sleep(0.4)
+        self.wait_sim_time(1.0)
 
         self.data.ctrl[2] = 1.57
         self.data.ctrl[4] = -1.57
-        time.sleep(0.3)
+        self.wait_sim_time(1.0)
 
         self.data.ctrl[7] = -2.36
         self.data.ctrl[8] = 2.36
         self.data.ctrl[10] = -2.36
         self.data.ctrl[11] = 2.36
-        time.sleep(0.2)
+        self.wait_sim_time(1.0)
 
         self.data.ctrl[6] = 0.01
         self.data.ctrl[9] = 0.01
@@ -341,23 +349,24 @@ class TurtlebotFactorySim:
         # 바퀴 멈추기
         self.data.ctrl[0] = 0.0
         self.data.ctrl[1] = 0.0
+        self.wait_sim_time(1.0)
 
         # 압력 풀기
         self.data.ctrl[6] = 0
         self.data.ctrl[9] = 0
-        time.sleep(0.5)
+        self.wait_sim_time(1.0)
 
         # 손가락 펴기
         self.data.ctrl[7] = 0
         self.data.ctrl[8] = 0
         self.data.ctrl[10] = 0
         self.data.ctrl[11] = 0
-        time.sleep(0.5)
+        self.wait_sim_time(1.0)
 
         # 팔 접기
-        self.data.ctrl[2] = 1.57
-        self.data.ctrl[4] = -1.57
-        time.sleep(0.5)
+        self.data.ctrl[2] = 0
+        self.data.ctrl[4] = 0
+        self.wait_sim_time(1.0)
 
         # 팔 후진
         self.data.ctrl[3] = 0
@@ -538,8 +547,9 @@ class TurtlebotFactorySim:
                         if abs(err_px) < self.ALIGN_TOL_PX:
                             self.data.ctrl[0] = 0.0
                             self.data.ctrl[1] = 0.0
+
                             print("[SEARCH] aligned → stop search")
-                            self.approach_target_label = self.search_target_label
+                            # self.approach_target_label = self.search_target_label
                             self.search_target_label = None
                             self.current_action = None
                             self.is_busy = False
@@ -549,10 +559,13 @@ class TurtlebotFactorySim:
                         self.data.ctrl[0] = 0.0
                         self.data.ctrl[1] = 0.0
                         self.approach_target_label = None
+                        self.current_action = None
                         print("초음파 조건 만족")
                         self.is_busy = False
                     else:
                         print("아직 멀어요")
+                        self.data.ctrl[0] = self.SEARCH_TURN_SPEED - 50 * (self.data.sensordata[9] - self.data.sensordata[10])
+                        self.data.ctrl[1] = self.SEARCH_TURN_SPEED
 
                 # 4) 일반 액션 duration 기반 정지 (검색 모드일 땐 X)
                 if (
@@ -565,6 +578,7 @@ class TurtlebotFactorySim:
                     print(f"[TurtlebotFactorySim] '{self.current_action}' 완료 → stop.")
                     self.current_action = None
                     self.is_busy = False
+                    # return
 
                 # 5) YOLO 디스플레이
                 if self.use_yolo:

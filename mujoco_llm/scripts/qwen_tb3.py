@@ -141,17 +141,19 @@ class QwenTb3:
                 # ----------------------------------
                 # 1️⃣ 목표 있는데 화면에 없으면 → SEARCH
                 # ----------------------------------
-                if target and target not in det_dict:
-                    cmd = SEARCH_CMD[target]
-                    print(f"➡️ '{target}' 안 보여서 {cmd} 수행")
-                    self.command_queue.put(cmd)
-                    continue
+                if (target and target not in det_dict) or (target in det_dict):
+                # if target or target not in det_dict:
+                    if any(k in question for k in ["찾아", "보여"]):
+                        cmd = SEARCH_CMD[target]
+                        print(f"➡️ '{target}' 안 보여서 {cmd} 수행")
+                        self.command_queue.put(cmd)
+                        continue
 
                 # ----------------------------------
                 # 2️⃣ 목표 보이고, 접근 요청이면 → APPROACH
                 # ----------------------------------
                 if target and target in det_dict:
-                    if any(k in question for k in ["가까이", "다가가", "접근"]):
+                    if any(k in question for k in ["가까이", "다가가", "접근", "앞으로"]):
                         cmd = APPROACH_CMD[target]
                         print(f"➡️ 접근 요청 → {cmd}")
                         self.command_queue.put(cmd)
