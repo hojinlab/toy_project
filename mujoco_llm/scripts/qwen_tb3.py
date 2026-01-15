@@ -173,7 +173,7 @@ class QwenTb3:
                 # 4️⃣ 잡기 방어 로직 (Gemini와 동일)
                 # ----------------------------------
                 # ✅ 바로 전달
-                if action == "잡기":
+                if action == "잡기" or any(k in question for k in ["잡아", "잡기"]):
                     self.command_queue.put("잡기")
                     continue
 
