@@ -78,7 +78,7 @@ class QwenTb3:
     def __init__(
         self,
         prompt_path: str,
-        model: str = "gemma2:9b",
+        model: str = "qwen2.5:14b",
         command_queue: Queue | None = None,
     ):
         self.command_queue = command_queue if command_queue else Queue()
