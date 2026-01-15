@@ -8,6 +8,7 @@ import mujoco
 import mujoco as mj
 import cv2
 import numpy as np
+from scipy.differentiate import derivative
 
 # 프로젝트 루트에서 utils 가져오기
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
@@ -61,6 +62,10 @@ class TurtlebotFactorySim:
         self.SEARCH_TURN_SPEED = 4.0  # 못 찾을 때 회전 속도(바퀴 제어값)
         self.ALIGN_TURN_MAX = 6.0  # 정렬 때 최대 회전 제어값
         self.ALIGN_KP = 0.01  # 픽셀 오차 -> 회전 제어로 바꾸는 비례게인
+        self.SENSOR_OFFSET = 0.0
+        self.APPROACH_SPEED = 10.0
+        self.PREV_ERROR = 0.0
+        self.INTEGRAL = 0.0
 
         # ===== ARM 파라미터(현재 _arm_grasp에서 사용) =====
         self.ultra_threshold_m = 0.15  # 초음파 임계값 (m)
@@ -255,8 +260,8 @@ class TurtlebotFactorySim:
             target = APPROACH_MAP[cmd]
             self.approach_target_label = target
 
-            self.data.ctrl[0] = self.SEARCH_TURN_SPEED
-            self.data.ctrl[1] = self.SEARCH_TURN_SPEED
+            self.data.ctrl[0] = self.APPROACH_SPEED
+            self.data.ctrl[1] = self.APPROACH_SPEED
             self.current_action = cmd
             # self.action_end_sim_time = float("inf")
 
@@ -315,8 +320,6 @@ class TurtlebotFactorySim:
             self.arm_stage = 1
             self.arm_next_step_time = self.data.time
 
-        self.is_busy = False
-
     def arm_sequence(self):
         if self.arm_state == "IDLE": return
 
@@ -355,15 +358,15 @@ class TurtlebotFactorySim:
                 self.arm_stage = 2
                 self.arm_next_step_time = current_time + 0.5
             elif self.arm_stage == 2:
+                self.data.ctrl[2] = 0.0
+                self.data.ctrl[4] = 0.0
+                self.arm_stage = 3
+                self.arm_next_step_time = current_time + 0.5
+            elif self.arm_stage == 3:
                 self.data.ctrl[7] = 0.0
                 self.data.ctrl[8] = 0.0
                 self.data.ctrl[10] = 0.0
                 self.data.ctrl[11] = 0.0
-                self.arm_stage = 3
-                self.arm_next_step_time = current_time + 0.5
-            elif self.arm_stage == 3:
-                self.data.ctrl[2] = 0.0
-                self.data.ctrl[4] = 0.0
                 self.arm_stage = 4
                 self.arm_next_step_time = current_time + 0.5
             elif self.arm_stage == 4:
@@ -373,74 +376,6 @@ class TurtlebotFactorySim:
                 self.arm_state = "IDLE"
                 self.is_busy = False
                 print("[ARM] RELEASING COMPLETE")
-
-
-    def wait_sim_time(self, seconds: float):
-        """지정한 초(seconds)만큼 시뮬레이션을 돌리며 대기합니다."""
-        start_time = self.data.time  # 현재 시뮬레이션 내부 시간
-        while self.data.time < start_time + seconds:
-            self.step_simulation()  # 물리 연산 수행
-            self.render()  # 그래픽 렌더링 (화면 갱신)
-
-    # 잡기
-    def _arm_grasp(self):
-        # 바퀴 정지
-        self.data.ctrl[0] = 0.0
-        self.data.ctrl[1] = 0.0
-        self.wait_sim_time(0.5)
-
-        print("[ARM] Start arm grasp sequence")
-
-        # ===== 기존 팔 제어 시퀀스 그대로 =====
-        self.data.ctrl[3] = 0.2
-        self.data.ctrl[5] = 0.2
-        self.wait_sim_time(0.5)
-
-        self.data.ctrl[2] = 1.57
-        self.data.ctrl[4] = -1.57
-        self.wait_sim_time(0.5)
-
-        self.data.ctrl[7] = -2.36
-        self.data.ctrl[8] = 2.36
-        self.data.ctrl[10] = -2.36
-        self.data.ctrl[11] = 2.36
-        self.wait_sim_time(0.5)
-
-        self.data.ctrl[6] = 0.01
-        self.data.ctrl[9] = 0.01
-
-        self.arm_state = "HOLDING"
-        print("[ARM] GRASP COMPLETE")
-
-    def _arm_release(self):
-        # 바퀴 멈추기
-        self.data.ctrl[0] = 0.0
-        self.data.ctrl[1] = 0.0
-        self.wait_sim_time(0.5)
-
-        # 압력 풀기
-        self.data.ctrl[6] = 0
-        self.data.ctrl[9] = 0
-        self.wait_sim_time(0.5)
-
-        # 손가락 펴기
-        self.data.ctrl[7] = 0
-        self.data.ctrl[8] = 0
-        self.data.ctrl[10] = 0
-        self.data.ctrl[11] = 0
-        self.wait_sim_time(0.5)
-
-        # 팔 접기
-        self.data.ctrl[2] = 0
-        self.data.ctrl[4] = 0
-        self.wait_sim_time(0.5)
-
-        # 팔 후진
-        self.data.ctrl[3] = 0
-        self.data.ctrl[5] = 0
-
-        self.arm_state = "IDLE"
-        print("[ARM_SEQ] RELEASE")
 
     def _process_commands(self):
         """command_queue 에 쌓인 명령들을 한 번에 처리."""
@@ -617,6 +552,23 @@ class TurtlebotFactorySim:
 
                             print("[SEARCH] aligned → stop search")
                             # self.approach_target_label = self.search_target_label
+                            if self.approach_target_label == "star" or self.approach_target_label == "heart":
+                                usr_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "ultrasonic_right_2")
+                                usl_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "ultrasonic_left_2")
+
+                                usr_adr = self.model.sensor_adr[usr_id]
+                                usl_adr = self.model.sensor_adr[usl_id]
+                            else:
+                                usr_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "ultrasonic_right")
+                                usl_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SENSOR, "ultrasonic_left")
+
+                                usr_adr = self.model.sensor_adr[usr_id]
+                                usl_adr = self.model.sensor_adr[usl_id]
+
+                            right_sensor = self.data.sensordata[usr_adr]
+                            left_sensor = self.data.sensordata[usl_adr]
+
+                            self.SENSOR_OFFSET = right_sensor - left_sensor
                             self.search_target_label = None
                             self.current_action = None
                             self.is_busy = False
@@ -645,14 +597,25 @@ class TurtlebotFactorySim:
                     if right_sensor <= good_distance or left_sensor <= good_distance:
                         self.data.ctrl[0] = 0.0
                         self.data.ctrl[1] = 0.0
+                        self.PREV_ERROR = 0.0
+                        self.INTEGRAL = 0.0
                         self.approach_target_label = None
                         self.current_action = None
-                        print("초음파 조건 만족")
                         self.is_busy = False
+                        print("초음파 조건 만족")
                     else:
                         # print("아직 멀어요")
-                        self.data.ctrl[0] = self.SEARCH_TURN_SPEED - (right_sensor - left_sensor)
-                        self.data.ctrl[1] = self.SEARCH_TURN_SPEED + (right_sensor - left_sensor)
+                        error = (right_sensor - left_sensor) - self.SENSOR_OFFSET
+                        dt = 1 / self.fps
+                        # self.INTEGRAL += error * dt
+                        derivative_d = (error - self.PREV_ERROR) / dt
+
+                        # steering = (10.0 * error) + (5.0 * self.INTEGRAL) + (2.0 * derivative_d)
+
+                        self.data.ctrl[0] -= (error + derivative_d)
+                        self.data.ctrl[1] += (error + derivative_d)
+
+                        self.PREV_ERROR = error
 
                 # 4) 일반 액션 duration 기반 정지 (검색 모드일 땐 X)
                 if (
