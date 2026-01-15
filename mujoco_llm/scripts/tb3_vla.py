@@ -31,7 +31,7 @@ sim = TurtlebotFactorySim(
 
 agent = QwenTb3(
     prompt_path=prompt_path,
-    model="gemma2:9b",
+    model="qwen2.5:14b",
     command_queue=cmd_q,
 )
 
