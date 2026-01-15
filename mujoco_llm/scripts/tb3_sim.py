@@ -607,13 +607,13 @@ class TurtlebotFactorySim:
                         # print("아직 멀어요")
                         error = (right_sensor - left_sensor) - self.SENSOR_OFFSET
                         dt = 1 / self.fps
-                        # self.INTEGRAL += error * dt
+                        self.INTEGRAL += error * dt
                         derivative_d = (error - self.PREV_ERROR) / dt
 
-                        # steering = (10.0 * error) + (5.0 * self.INTEGRAL) + (2.0 * derivative_d)
+                        steering = (1.5 * error) + (0.1 * self.INTEGRAL) + (0.5 * derivative_d)
 
-                        self.data.ctrl[0] -= (error + derivative_d)
-                        self.data.ctrl[1] += (error + derivative_d)
+                        self.data.ctrl[0] = self.APPROACH_SPEED - steering
+                        self.data.ctrl[1] = self.APPROACH_SPEED + steering
 
                         self.PREV_ERROR = error
 
