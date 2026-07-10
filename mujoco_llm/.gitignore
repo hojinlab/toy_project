@@ -38,9 +38,13 @@ scaler.pt
 # ===========================
 learn_LLM/src/*.pdf
 *.pdf
-scripts/img_dataset/
+*.mov
+scripts/img_dataset*/
+scripts/yolo11_cards/
 # ===========================
 # Others
 # ===========================
 .DS_Store
+.idea/
+.vscode/
 *.zip

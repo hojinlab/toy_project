@@ -1,2 +1,25 @@
+# ===========================
+# Secrets / local config
+# ===========================
 .env
 debug_scene.xml
+
+# ===========================
+# OS / Editor junk
+# ===========================
+.DS_Store
+.idea/
+.vscode/
+
+# ===========================
+# Large media / documents (do not commit)
+# ===========================
+*.pdf
+*.mov
+*.zip
+
+# ===========================
+# Generated datasets & training-run outputs
+# ===========================
+mujoco_llm/scripts/img_dataset*/
+mujoco_llm/scripts/yolo11_cards/
