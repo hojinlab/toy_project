@@ -12,11 +12,16 @@ debug_scene.xml
 .vscode/
 
 # ===========================
-# Large media / documents (do not commit)
+# Large media / documents (ignored by default)
 # ===========================
 *.pdf
 *.mov
+*.mp4
 *.zip
+
+# --- Allowed project deliverables (kept intentionally) ---
+!/presentation.pdf
+!/demo.mp4
 
 # ===========================
 # Generated datasets & training-run outputs
