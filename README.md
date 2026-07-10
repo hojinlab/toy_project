@@ -9,9 +9,9 @@
 
 ### 데모 영상
 
-<video src="https://github.com/hojinlab/toy_project/raw/main/demo.mp4" controls muted width="720"></video>
+[![데모 영상 — 클릭하면 재생](demo_poster.png)](demo.mp4)
 
-> 플레이어가 보이지 않으면 [demo.mp4](demo.mp4) 를 눌러 확인하세요. (GitHub 웹에서만 재생됩니다)
+> 썸네일을 클릭하면 GitHub 영상 플레이어에서 [demo.mp4](demo.mp4)가 재생됩니다.
 
 ### 발표 자료
 
