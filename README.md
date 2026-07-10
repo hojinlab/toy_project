@@ -9,9 +9,9 @@
 
 ### 데모 영상
 
-[![데모 영상 — 클릭하면 재생](demo_poster.png)](demo.mp4)
+https://github.com/user-attachments/assets/bbca412e-f74b-46b2-8e6d-6f09dd8fffe9
 
-> 썸네일을 클릭하면 GitHub 영상 플레이어에서 [demo.mp4](demo.mp4)가 재생됩니다.
+> 재생이 안 되면 저장소의 [demo.mp4](demo.mp4)에서도 볼 수 있습니다.
 
 ### 발표 자료
 
