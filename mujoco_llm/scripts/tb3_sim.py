@@ -11,7 +11,7 @@ import numpy as np
 from scipy.differentiate import derivative
 
 # 프로젝트 루트에서 utils 가져오기
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.mujoco_renderer import MuJoCoViewer
 from utils.object_detector import ObjectDetector
 

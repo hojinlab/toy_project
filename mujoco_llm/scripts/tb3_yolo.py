@@ -1,14 +1,22 @@
 import os
 import sys
 
-# 프로젝트 루트 추가 (js_mujoco/scripts 기준 ipynb라고 가정)
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
+
+def get_project_root():
+    """이 스크립트(scripts/) 기준으로 프로젝트 루트를 반환한다."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(script_dir)
+
+
+PROJECT_ROOT = get_project_root()
+
+# 프로젝트 루트 추가
+sys.path.append(PROJECT_ROOT)
 
 # 통합 시뮬 클래스 import
 from tb3_sim import TurtlebotFactorySim
 
 # XML, YOLO weight 경로
-PROJECT_ROOT = os.path.abspath(os.path.join(os.getcwd(), ".."))
 XML_PATH = os.path.join(PROJECT_ROOT, "asset", "robotis_tb3", "tb3_factory_main.xml")
 YOLO_WEIGHTS = os.path.join(PROJECT_ROOT, "scripts", "best_mac.pt")  # 위치에 맞게 수정
 

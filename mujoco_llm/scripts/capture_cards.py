@@ -4,12 +4,21 @@ import cv2
 import mujoco as mj
 
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))  # 프로젝트 루트로
+
+
+def get_project_root():
+    """이 스크립트(scripts/) 기준으로 프로젝트 루트를 반환한다."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(script_dir)
+
+
+PROJECT_ROOT = get_project_root()
+sys.path.append(PROJECT_ROOT)  # 프로젝트 루트로
 
 from utils.mujoco_renderer import MuJoCoViewer
 
 # 사용할 XML 파일 경로
-XML_PATH = "/path/to/toy_project/mujoco_llm/asset/robotis_tb3/tb3_factory_main.xml"
+XML_PATH = os.path.join(PROJECT_ROOT, "asset", "robotis_tb3", "tb3_factory_main.xml")
 
 # 저장 위치 (train 이미지)
 OUT_DIR = "img_dataset2/images"
